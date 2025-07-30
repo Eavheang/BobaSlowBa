@@ -5,6 +5,7 @@ from config import (
     OrderState, OrderItem, UserOrder, MAX_DRINKS_PER_ORDER,
     StoreStatus, state, PaymentMethod, ABA_PAYMENT_LINK
 )
+from database import save_order
 
 # In-memory store for tracking orders
 user_orders: dict[int, UserOrder] = {}
@@ -17,7 +18,12 @@ def get_user_order(user_id: int) -> UserOrder:
 def format_order_summary(order: UserOrder) -> str:
     summary = "🧋 *Your Order:*\n\n"
     for idx, item in enumerate(order.items, 1):
-        summary += f"{idx}\\. {item.item} \\- {item.sweetness}\n"
+        # Escape the decimal point in price
+        price_str = f"{item.price:.2f}".replace(".", "\\.")
+        summary += f"{idx}\\. {item.item} \\- {item.sweetness} \\- \\${price_str}\n"
+    # Escape the decimal point in total price
+    total_str = f"{order.get_total_price():.2f}".replace(".", "\\.")
+    summary += f"\n💰 *Total: \\${total_str}*"
     return summary
 
 async def send_order_to_owner(context: ContextTypes.DEFAULT_TYPE, user_id: int, username: str):
@@ -40,7 +46,10 @@ async def send_order_to_owner(context: ContextTypes.DEFAULT_TYPE, user_id: int, 
     for idx, item in enumerate(order.items, 1):
         escaped_item = item.item.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("`", "\\`")
         escaped_sweet = item.sweetness.replace("_", "\\_").replace("*", "\\*").replace("[", "\\[").replace("]", "\\]").replace("`", "\\`")
-        msg += f"{idx}\\. `{escaped_item}` \\- `{escaped_sweet}`\n"
+        price_str = f"{item.price:.2f}".replace(".", "\\.")
+        msg += f"{idx}\\. `{escaped_item}` \\- `{escaped_sweet}` \\- \\${price_str}\n"
+    total_str = f"{order.get_total_price():.2f}".replace(".", "\\.")
+    msg += f"\n💰 *Total: \\${total_str}*"
     
     # Add payment method information
     payment_info = "💵 *Payment Method:* `Cash`" if order.payment_method == PaymentMethod.CASH else "🏦 *Payment Method:* `ABA Pay`"
@@ -149,7 +158,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data.startswith("item_"):
         item = data[5:]
-        order.current_item.item = item
+        order.current_item.set_item(item)
         # Show sweetness options
         keyboard = [[InlineKeyboardButton(level, callback_data=f"sweet_{level}")] for level in SWEET_LEVELS]
         await query.edit_message_text("Choose your sweetness level:", reply_markup=InlineKeyboardMarkup(keyboard))
@@ -203,8 +212,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         payment_method = data[4:]  # Extract payment method (cash or aba)
         order.payment_method = payment_method
         
-        # Send order to owner first
+        # Send order to owner and save to database
         username = query.from_user.username or query.from_user.full_name
+        
+        # Save order to database
+        order_items = [item.to_dict() for item in order.items]
+        await save_order(
+            user_id=user_id,
+            username=username,
+            items=order_items,
+            total_amount=order.get_total_price(),
+            payment_method=payment_method
+        )
+        
+        # Send order to owner
         await send_order_to_owner(context, user_id, username)
         
         try:

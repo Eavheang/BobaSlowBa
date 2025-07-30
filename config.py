@@ -40,11 +40,24 @@ logger = logging.getLogger(__name__)
 # Order Configuration
 MAX_DRINKS_PER_ORDER = 4
 
-# Menu Configuration
+# Menu Configuration with Prices
 MENU = {
-    "Coffee": ["Americano", "Iced Latte", "Hot Latte", "Milked Coffee"],
-    "Matcha": ["Matcha Latte", "Matcha Espresso", "Strawberry Matcha"],
-    "Soda": ["Strawberry Soda", "Blueberry Soda", "Passion Soda"]
+    "Coffee": {
+        "Americano": 1.25,
+        "Iced Latte": 1.25,
+        "Hot Latte": 1.00,
+        "Milked Coffee": 1.25
+    },
+    "Matcha": {
+        "Matcha Latte": 1.25,
+        "Matcha Espresso": 1.50,
+        "Strawberry Matcha": 1.50
+    },
+    "Soda": {
+        "Strawberry Soda": 1.25,
+        "Blueberry Soda": 1.25,
+        "Passion Soda": 1.25
+    }
 }
 
 SWEET_LEVELS = ["More sweet", "Normal sweet", "Less sweet", "No sweet"]
@@ -59,20 +72,28 @@ class OrderState:
 
 # Order structure
 class OrderItem:
-    def __init__(self, category: str, item: str, sweetness: str = None):
+    def __init__(self, category: str, item: str = None, sweetness: str = None):
         self.category = category
         self.item = item
         self.sweetness = sweetness
+        self.price = MENU[category][item] if item is not None else 0.0
+
+    def set_item(self, item: str):
+        self.item = item
+        self.price = MENU[self.category][item]
 
     def to_dict(self) -> dict:
         return {
             "category": self.category,
             "item": self.item,
-            "sweetness": self.sweetness
+            "sweetness": self.sweetness,
+            "price": self.price
         }
 
     def __str__(self) -> str:
-        return f"{self.item} ({self.sweetness})"
+        if self.item is None:
+            return "Incomplete order item"
+        return f"{self.item} ({self.sweetness}) - ${self.price:.2f}"
 
 class UserOrder:
     def __init__(self):
@@ -90,6 +111,19 @@ class UserOrder:
 
     def get_total_items(self) -> int:
         return len(self.items)
+
+    def get_total_price(self) -> float:
+        return sum(item.price for item in self.items)
+
+    def get_order_summary(self) -> str:
+        if not self.items:
+            return "No items in order"
+        
+        summary = "Order Summary:\n"
+        for i, item in enumerate(self.items, 1):
+            summary += f"{i}. {item}\n"
+        summary += f"\nTotal: ${self.get_total_price():.2f}"
+        return summary
 
     def clear(self):
         self.items.clear()

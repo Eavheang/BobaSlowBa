@@ -8,7 +8,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         keyboard = [[InlineKeyboardButton("🛒 Order Now", callback_data="order_now")]]
         keyboard_markup = InlineKeyboardMarkup(keyboard)
-        welcome_message = "Hi, welcome to BoBa Slow-Ba Cafe. What would you like to order?"
+        welcome_message = "Hi, welcome to BoBa Slow-Ba Cafe. What would you like to order?\n\nType /help to see all available commands."
         
         # Get or send menu image with welcome message and keyboard
         file_id = await send_menu_image(
