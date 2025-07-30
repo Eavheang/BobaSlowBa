@@ -4,7 +4,13 @@ from handlers import start, button_handler, store_command
 
 def main():
     # Create the Application
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN)\
+        .connection_pool_size(8)\
+        .pool_timeout(30.0)\
+        .connect_timeout(30.0)\
+        .read_timeout(30.0)\
+        .write_timeout(30.0)\
+        .build()
 
     # Add handlers
     app.add_handler(CommandHandler("start", start))
