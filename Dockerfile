@@ -13,8 +13,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the rest of the application
 COPY . .
 
+# Make the keep-alive script executable
+RUN chmod +x keep_alive.sh
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV PORT=10000
 
-# Run the bot
-CMD ["python", "main.py"] 
+# Expose the port
+EXPOSE 10000
+
+# Run the bot and health check server
+CMD ["sh", "-c", "python health_check.py & python main.py"] 
